@@ -1,0 +1,76 @@
+name: Lint and Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.10, 3.11, 3.12]
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install black ruff pytest
+    
+    - name: Lint with ruff
+      run: |
+        ruff check src/ tests/
+    
+    - name: Check formatting with black
+      run: |
+        black --check src/ tests/
+    
+    - name: Run tests
+      run: |
+        pytest tests/ -v --tb=short
+
+  test-minimal:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.10
+    
+    - name: Install minimal dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install numpy pandas scikit-learn nltk
+    
+    - name: Test basic functionality
+      run: |
+        python -c "
+        import sys
+        sys.path.append('src')
+        from data.schemas import IntentType, SupportTicket
+        from data.generator import SyntheticDataGenerator
+        print('Basic imports successful')
+        
+        # Test data generation
+        generator = SyntheticDataGenerator()
+        tickets = generator.generate_tickets(10)
+        print(f'Generated {len(tickets)} tickets')
+        
+        # Test intent classification
+        from models.intent_classifier import KeywordIntentClassifier
+        classifier = KeywordIntentClassifier()
+        prediction = classifier.predict('What is my order status?')
+        print(f'Intent prediction: {prediction.intent.value}')
+        "
